@@ -1,0 +1,591 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B58"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg"><style>:root{padding-top:env(safe-area-inset-top,0px)}body{margin:0}[hidden]{display:none!important}</style></head><body><title>Карта голодания</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: одна колонка для телефона, нижняя навигация, красные блоки безопасности всегда сверху */
+:root{
+  --bg:#F2F4F3; --surface:#FFFFFF; --fg:#17201E; --muted:#5B6864; --line:#DCE2DF;
+  --accent:#1E6B58; --accent-fg:#FFFFFF; --accent-soft:#E0EEE9;
+  --danger:#C1271E; --danger-fg:#FFFFFF; --danger-soft:#FBE8E6; --danger-line:#F1C3BE;
+  --warn:#8A5D00; --warn-soft:#FFF3D3;
+  --st1:#D6A13E; --st2:#D9733A; --crisis:#B13D35; --st3:#3E8C75; --st4:#2D6C8C;
+  --font-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --font-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1514; --surface:#18201E; --fg:#E5ECE9; --muted:#9AA8A3; --line:#2A3532;
+  --accent:#5BC2A3; --accent-fg:#0B1412; --accent-soft:#1A2F29;
+  --danger:#FF6A5D; --danger-fg:#1A0705; --danger-soft:#361A17; --danger-line:#5E2A25;
+  --warn:#E8B94B; --warn-soft:#30280F;
+  --st1:#E2B24F; --st2:#EA8A50; --crisis:#E0645A; --st3:#55B095; --st4:#4C95BA;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0F1514; --surface:#18201E; --fg:#E5ECE9; --muted:#9AA8A3; --line:#2A3532;
+  --accent:#5BC2A3; --accent-fg:#0B1412; --accent-soft:#1A2F29;
+  --danger:#FF6A5D; --danger-fg:#1A0705; --danger-soft:#361A17; --danger-line:#5E2A25;
+  --warn:#E8B94B; --warn-soft:#30280F;
+  --st1:#E2B24F; --st2:#EA8A50; --crisis:#E0645A; --st3:#55B095; --st4:#4C95BA;
+  color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 110px}
+h1,h2,h3{text-wrap:balance;margin:0}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.35rem;letter-spacing:-.01em}
+h2{font-size:1.2rem;font-weight:700}
+h3{font-size:1rem;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.stack{display:flex;flex-direction:column;gap:12px}
+.stack-lg{display:flex;flex-direction:column;gap:20px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.eyebrow{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+ul.list{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:6px}
+ol.list{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}
+
+/* Красные блоки "обязательно прочитать" */
+.must{display:flex;gap:14px;align-items:center;width:100%;text-align:left;background:var(--danger-soft);border:1.5px solid var(--danger);border-radius:var(--radius);padding:14px 16px;color:var(--fg);font:inherit;cursor:pointer}
+.must:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bang{flex:none;width:40px;height:40px;border-radius:50%;background:var(--danger);color:var(--danger-fg);display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:1.35rem}
+.must b{display:block;font-size:1.05rem}
+.must span.sub{font-size:.875rem;color:var(--muted)}
+.chev{margin-left:auto;color:var(--danger);font-size:1.4rem;line-height:1}
+.alert{background:var(--danger-soft);border:1px solid var(--danger-line);border-radius:var(--radius);padding:14px 16px}
+.alert h3{color:var(--danger)}
+.note{background:var(--warn-soft);border-radius:var(--radius);padding:12px 14px;font-size:.95rem}
+.src{font-size:.8rem;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+
+/* Кнопки и поля */
+.btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent);color:var(--accent-fg);min-height:48px}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.danger{background:var(--danger);color:var(--danger-fg)}
+.btn.wide{width:100%}
+.link{appearance:none;background:none;border:0;padding:0;color:var(--accent);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:.95rem}
+input[type=date],input[type=number],textarea,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:46px;width:100%}
+textarea{min-height:96px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* День: крупная цифра */
+.daynum{font-family:var(--font-display);font-weight:700;font-size:3.4rem;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.daynum small{font-family:var(--font-body);font-size:1rem;font-weight:500;color:var(--muted);letter-spacing:0}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:.8rem;font-weight:600;background:var(--accent-soft);color:var(--fg)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+
+/* Полоса 30 дней */
+.strip{display:grid;grid-template-columns:repeat(30,1fr);gap:2px}
+.strip i{height:14px;border-radius:3px;opacity:.55}
+.strip i.on{opacity:1;outline:2px solid var(--fg);outline-offset:1px}
+.strip i.past{opacity:1}
+.strip-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:var(--muted)}
+.strip-legend span{display:inline-flex;align-items:center;gap:6px}
+
+/* Список дней */
+.daylist{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.dayrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;width:100%}
+.dayrow:last-child{border-bottom:0}
+.dayrow .n{font-family:var(--font-display);font-weight:700;font-size:1.1rem;width:2.2em;font-variant-numeric:tabular-nums}
+.dayrow .t{flex:1;min-width:0}
+.dayrow .t b{display:block;font-weight:600}
+.dayrow .t span{display:block;font-size:.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dayrow.today{background:var(--accent-soft)}
+.bar{width:5px;align-self:stretch;border-radius:3px;flex:none}
+.stagehead{padding:10px 14px;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--line)}
+.mark{font-size:.75rem;font-weight:700;color:var(--accent)}
+
+/* Чипы симптомов */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:8px 13px;font:inherit;font-size:.92rem;cursor:pointer;min-height:40px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.chip.red{border-color:var(--danger-line)}
+.chip.red[aria-pressed="true"]{background:var(--danger);border-color:var(--danger);color:var(--danger-fg)}
+.mood{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.mood button{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);border-radius:10px;padding:8px 0;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px}
+.mood button b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.mood button span{font-size:.68rem;color:var(--muted)}
+.mood button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+
+/* Записи */
+.entry{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:4px}
+.entry:first-child{border-top:0;padding-top:0}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.78rem;border-radius:999px;padding:2px 9px;background:var(--accent-soft)}
+.tag.red{background:var(--danger-soft);color:var(--danger);font-weight:600}
+
+/* План выхода */
+.plan{display:flex;flex-direction:column;gap:0;border-left:3px solid var(--accent);margin-left:6px}
+.plan .step{position:relative;padding:0 0 14px 18px}
+.plan .step::before{content:"";position:absolute;left:-8px;top:5px;width:13px;height:13px;border-radius:50%;background:var(--surface);border:3px solid var(--accent)}
+.plan .step b{display:block}
+.plan .step.now::before{background:var(--accent)}
+
+/* Нижняя навигация */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:20}
+nav.tabs button{appearance:none;background:none;border:0;color:var(--muted);font:inherit;font-size:.75rem;font-weight:600;padding:8px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-height:58px}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+
+/* Окно первого запуска */
+.overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);backdrop-filter:blur(4px);z-index:40;overflow:auto;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.overlay .card{max-width:560px;margin:0 auto;box-shadow:0 10px 40px rgba(0,0,0,.18)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:.95rem}
+.check input{width:22px;height:22px;flex:none;margin-top:1px;accent-color:var(--accent)}
+.back{appearance:none;background:none;border:0;color:var(--accent);font:inherit;font-weight:600;padding:6px 0;cursor:pointer}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:.9rem;z-index:50}
+@media (prefers-reduced-motion:no-preference){.must{transition:transform .12s}.must:active{transform:scale(.99)}}
+</style>
+
+<div class="wrap" id="app"></div>
+<nav class="tabs" id="tabs" aria-label="Разделы">
+  <button data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Сегодня</button>
+  <button data-tab="days"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Карта дней</button>
+  <button data-tab="diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>Дневник</button>
+  <button data-tab="guide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></svg>Справочник</button>
+</nav>
+<div id="overlay"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ===================== ТЕКСТЫ ===================== */
+const STAGES = {
+  s1:{name:"Пищевое возбуждение", color:"var(--st1)"},
+  s2:{name:"Нарастающий ацидоз", color:"var(--st2)"},
+  k1:{name:"Окно первого криза", color:"var(--crisis)"},
+  s3:{name:"Компенсация", color:"var(--st3)"},
+  k2:{name:"Второй криз", color:"var(--crisis)"},
+  s4:{name:"После второго криза", color:"var(--st4)"}
+};
+function stageOf(d){ if(d<=3)return"s1"; if(d<=5)return"s2"; if(d<=10)return"k1"; if(d<=22)return"s3"; if(d<=25)return"k2"; return"s4"; }
+
+const STAGE_TEXT = {
+  s1:"Организм ещё ждёт еду и требует её. Уходит лишняя соль и вода, поэтому вес в первые дни падает быстро, на 2–4 кг.",
+  s2:"Организм переходит на питание своими запасами. В крови копятся кислые продукты распада жира (ацидоз), поэтому самочувствие обычно хуже всего именно здесь.",
+  k1:"Где-то между 6-м и 10-м днём наступает перелом, который Малахов называет первым ацидотическим кризом. До него тяжело, после него заметно легче.",
+  s3:"Организм перестроился. Самочувствие ровное, вес уходит медленно, 100–200 г в день.",
+  k2:"Около 23–25-го дня бывает второй криз: снова ухудшение, могут обостриться старые болезни, потом опять улучшение.",
+  s4:"По Малахову голодание заканчивается, когда приходит сильный голод и очищается язык. У большинства людей этого сигнала к 30-му дню ещё нет."
+};
+
+const DAYS = {
+ 1:{t:"Голод волнами", may:["Голод приходит волнами, сильнее всего в привычное время еды","Мысли о еде, раздражительность","Может слегка болеть голова"], doo:["Пей воду маленькими глотками весь день, около 2 литров","Убери еду с глаз, не ходи по кухне без дела","Займи руки и голову: прогулка, дела, разговоры"], note:"По Малахову в первый день очищают кишечник: клизма или слабительное. Делать или нет, решай сам. При болезнях кишечника сначала спроси врача."},
+ 2:{t:"Самый трудный по голоду", may:["Часто самый тяжёлый день по чувству голода","Головная боль, особенно если ты пьёшь кофе или крепкий чай: это отмена кофеина","Зябкость, вялость, плохое настроение"], doo:["Одевайся теплее","При головной боли: прогулка на воздухе, вода, отдых","Не принимай решений на эмоциях. Плохое настроение здесь обычное дело"], note:"У большинства голод стихает к 3–4-му дню."},
+ 3:{t:"Голод стихает", may:["Голод слабеет, зато сильнее хочется пить","Налёт на языке, запах ацетона изо рта","Вес за первые дни уходит на 2–4 кг, в основном это вода"], doo:["Чисти зубы и счищай налёт с языка, полощи рот","С кровати вставай медленно","Продолжай пить воду"]},
+ 4:{t:"Слабость и сонливость", may:["Голода почти нет","Слабость, сонливость, заторможенность","Темнеет в глазах и кружится голова при резком вставании"], doo:["Вставай в три приёма: сел, посидел, встал","Не садись за руль, если кружится голова или сильная слабость","Гуляй спокойно, без нагрузок"]},
+ 5:{t:"Тяжёлые утра", may:["По утрам головная боль, тошнота, слабость","Сухость во рту и кожи, бледность","Могут обостриться старые болячки"], doo:["Утром: вода и спокойная прогулка, после неё обычно легче","Если тяжело, Малахов советует добавить в день 0,5 л минеральной воды"], warn:"Если тошнота перешла в рвоту и вода не держится, прекращай голодание. Это красный флажок."},
+ 6:{t:"Перед первым кризом", may:["Самочувствие может быть хуже, чем в первые дни","Вес уходит на 300–500 г в сутки","Налёт на языке густой"], doo:["Больше отдыхай","Записывай в дневник всё: так легче увидеть, когда наступит перелом"], note:"С 6-го по 10-й день ждём первый криз. У каждого он приходит в свой день."},
+ 7:{t:"Ожидание перелома", may:["Слабость, вялость, налёт на языке","Может быть тяжесть справа под рёбрами. Малахов считает, что в это время «чистится» печень"], doo:["Покой, вода, свежий воздух","Следи за пульсом и самочувствием"], warn:"Сильная боль в правом боку, жёлтые кожа или глаза — это не очищение. Прекращай голодание и иди к врачу."},
+ 8:{t:"Может наступить криз", may:["За ночь или за несколько часов резко становится лучше","Появляется бодрость, голова ясная, язык светлеет","Запах изо рта уменьшается"], doo:["Не перегружай себя на радостях","Держи прежний режим: вода, прогулки, отдых"], warn:"Сам Малахов описывает «блокаду» на 5–10-й день: вес перестаёт уходить, нарастают слабость, тошнота, головная боль, температура, перебои в сердце. Это повод остановиться и идти к врачу, а не терпеть."},
+ 9:{t:"Улучшение волнами", may:["Если криз прошёл, хорошие периоды становятся всё длиннее","Если ещё нет, ещё 1–2 дня может быть тяжело"], doo:["Сравни свои записи за последние дни: видно ли улучшение?","Пей воду, гуляй по силам"]},
+ 10:{t:"Криз обычно позади", may:["Голода нет, сил больше","Вес уходит медленнее, 100–200 г в день","Настроение ровнее, сон лучше"], doo:["Заранее реши, сколько дней ещё будешь голодать. От этого зависит длина выхода","Открой раздел «Выход» и посмотри свой план"], warn:"Голодать дольше 7–10 дней без врача — серьёзный риск. Если продолжаешь, сдай анализ крови (калий, натрий, глюкоза) и сделай ЭКГ."},
+ 11:{t:"Ровный период", may:["Самочувствие ровное, настроение лучше","Сон налаживается"], doo:["Прогулки по силам","Продолжай пить воду и вести записи"]},
+ 12:{t:"Мысли «хватит»", may:["Могут приходить мысли закончить","Самочувствие ровное"], doo:["Решай по самочувствию и по своему плану, а не по настроению","Закончить раньше плана — нормально. Главное, правильно выйти"]},
+ 13:{t:"Ровный период", may:["Тело может мёрзнуть","После нагрузки силы возвращаются медленнее"], doo:["Береги тепло","Не поднимай тяжёлое"]},
+ 14:{t:"Две недели", may:["Самочувствие ровное, вес уходит медленно"], doo:["14 дней — хороший срок для первого долгого голодания","Если идёшь дальше, выход будет дольше и строже: посмотри план"]},
+ 15:{t:"Ровный период", may:["Ровное самочувствие, ясная голова","Может быть сухость кожи"], doo:["Прогулки, отдых, вода","Записывай вес и пульс"]},
+ 16:{t:"Ровный период", may:["Самочувствие ровное","Может мёрзнуть тело"], doo:["Береги тепло","Вставай медленно"]},
+ 17:{t:"Классический курс", may:["Ровное самочувствие"], doo:["Малахов считает 17–20 дней классическим первым курсом","Подготовь продукты для выхода: соки, овощи, фрукты"]},
+ 18:{t:"Ровный период", may:["Самочувствие ровное, сил меньше, чем обычно"], doo:["Не перегружайся","Проверь, есть ли у тебя всё для выхода"]},
+ 19:{t:"Ровный период", may:["Самочувствие ровное"], doo:["Отдых, прогулки, вода"]},
+ 20:{t:"Двадцать дней", may:["Самочувствие ровное, вес уходит медленно"], doo:["Подумай, выходить сейчас или продолжать"], warn:"Голодать дальше 20 дней можно только под наблюдением врача."},
+ 21:{t:"Подход ко второму кризу", may:["Пока ровно, но организм подходит ко второму кризу"], doo:["Держи наготове всё для выхода","Предупреди близких, как ты себя чувствуешь"]},
+ 22:{t:"Подход ко второму кризу", may:["Пока ровно, может нарастать слабость"], doo:["Покой, вода","Записи подробнее обычного"]},
+ 23:{t:"Второй криз", may:["Самочувствие ухудшается","Могут обостриться старые болезни","Слабость"], doo:["Покой","Подробно записывай симптомы"], warn:"На этом сроке красные флажки особенно опасны. При любом из них сразу к врачу."},
+ 24:{t:"Второй криз", may:["Ухудшение может держаться 1–3 дня"], doo:["Покой, вода, тепло"], warn:"Если сердце бьётся с перебоями, кружится голова до обморока или путаются мысли, вызывай скорую: 103 или 112."},
+ 25:{t:"Второй криз", may:["После криза самочувствие снова улучшается"], doo:["Покой, вода"]},
+ 26:{t:"После криза", may:["Самочувствие ровнее","Вес уходит на 100 г в день и меньше"], doo:["Отдых, тепло"]},
+ 27:{t:"После криза", may:["Ровно, сил мало"], doo:["Минимум нагрузок"]},
+ 28:{t:"Признаки окончания", may:["У некоторых появляется сильный голод и очищается язык"], doo:["Появился сильный голод — начинай выход, не затягивай"]},
+ 29:{t:"Признаки окончания", may:["Сильный голод, чистый язык — по Малахову это сигнал выходить"], doo:["Начинай выход, если есть сигнал"]},
+ 30:{t:"Конец карты", may:["У большинства сигнала окончания к 30-му дню ещё нет"], doo:["Выходи по плану на 30 дней"], warn:"Дальше 30 дней приложение не ведёт. Голодать так долго без врача опасно для жизни."}
+};
+
+const RED_FLAGS = [
+ "Обморок или почти обморок",
+ "Боль, давление или жжение в груди",
+ "Сердце бьётся неровно, с перебоями, или очень часто в покое",
+ "Путаница в голове, невнятная речь, сильная сонливость",
+ "Рвота, после которой не держится вода",
+ "Мочи почти нет больше 12 часов, или она очень тёмная",
+ "Сильная боль в животе или правом боку, жёлтые кожа или глаза",
+ "Температура выше 38,5 °C",
+ "Судороги, сильные отёки, одышка",
+ "Кровь в рвоте или в стуле"
+];
+
+const NOT_ALLOWED = [
+ "Беременность и кормление грудью",
+ "Возраст до 18 лет",
+ "Диабет, особенно на инсулине или таблетках, снижающих сахар",
+ "Низкий вес или истощение",
+ "Расстройство пищевого поведения сейчас или в прошлом",
+ "Болезни сердца: аритмия, перенесённый инфаркт, сердечная недостаточность",
+ "Тяжёлые болезни почек или печени",
+ "Подагра",
+ "Туберкулёз, онкология, тяжёлые болезни крови (их называет и сам Малахов)",
+ "Психические заболевания",
+ "Постоянный приём лекарств: от давления, разжижающих кровь, мочегонных, гормонов. Только после разговора с врачом"
+];
+const CAUTION = [
+ "Камни в желчном пузыре или почках",
+ "Язва желудка или двенадцатиперстной кишки",
+ "Низкое давление",
+ "Возраст старше 65 лет",
+ "Работа за рулём или тяжёлый физический труд во время голодания"
+];
+
+const EXIT_RULES = [
+ ["Выход — самая опасная часть голодания.","Ошибки на выходе бьют сильнее, чем сам голод."],
+ ["Выход длится примерно столько же, сколько голодание.","10 дней голода — около 10 дней выхода."],
+ ["Маленькие порции, ешь медленно, жуй долго.","Остановись при первом чувстве сытости."],
+ ["Первые 5 дней без соли.","До конца выхода без мяса, рыбы, яиц, молочного, жареного, сладкого, кофе и алкоголя."],
+ ["Главная ошибка — сорваться и наесться.","После долгого голода это может закончиться больницей."]
+];
+const REFEED = "После 10 дней голода и дольше есть риск синдрома возобновления питания. Признаки в первые дни еды: отёки, одышка, сердцебиение или перебои, сильная слабость, путаница, судороги. Это срочно: скорая 103 или 112. После долгого голода выходить лучше под наблюдением врача.";
+
+function exitPlan(n){
+  n = Math.max(1, Math.round(n||0));
+  if(n<=3) return {len:"1–2 дня", steps:[
+    ["День 1","Начни с фруктов, овощного салата или свежего сока. Порции небольшие. Без жирного, жареного, мяса и сладкого."],
+    ["День 2","Обычная лёгкая еда. Не переедай."]]};
+  if(n<=7){ const s=[
+    ["День 1","Только свежий сок, разбавленный водой пополам (морковный, яблочный). По стакану каждые 1,5–2 часа. Без соли."],
+    ["День 2","Соки, тёртые яблоки и морковь, мягкие фрукты. 4–5 раз в день, маленькими порциями."],
+    ["День 3","Сырые и тушёные на воде овощи, фрукты, ягоды."],
+    ["День 4","Небольшая порция каши на воде (гречка, овсянка). Можно размоченные сухофрукты и немного мёда."]];
+    if(n>=5) s.push([n===5?"День 5":"Дни 5–"+n,"Понемногу хлеб, бобовые, орехи. Соль только с 6-го дня. Мясо и молочное в самом конце выхода."]);
+    return {len:"около "+n+" дней", steps:s}; }
+  if(n<=14) return {len:"около "+n+" дней", steps:[
+    ["Дни 1–2","Только свежие соки пополам с водой и травяные отвары. По стакану каждые 1,5–2 часа. Без соли."],
+    ["Дни 3–4","Неразбавленные соки, фрукты, сырые и тушёные на воде овощи. 4–5 раз в день маленькими порциями."],
+    ["Дни 5–6","Каши на воде (гречка, овсянка, пшено), цельнозерновой хлеб или хлеб из пророщенной пшеницы, размоченные сухофрукты, немного мёда. Соль понемногу с 6-го дня."],
+    ["Дни 7–"+n,"Бобовые, орехи, семечки, обычный хлеб. На обычную еду переходи, когда язык очистится от налёта (признак по Малахову). Мясо, рыба, молоко, яйца — не раньше конца выхода."]]};
+  if(n<=21) return {len:"около "+n+" дней, дальше месяц растительной еды", steps:[
+    ["День 1","За весь день 1 литр свежего сока и 0,5 литра воды. По стакану каждые 1–1,5 часа. Лучше морковный или яблочный. Соль запрещена первые 5 дней."],
+    ["День 2","Овощи (в основном сырые), фрукты, ягоды 4–5 раз в день. Ешь только до первого чувства сытости. К вечеру можно отварную свёклу или печёную картошку."],
+    ["День 3","Добавь размоченные в тёплой воде сухофрукты и 2 чайные ложки мёда."],
+    ["День 4","Еда 3–4 раза в день. Каша на воде (гречка, овёс, пшено, перловка) с растительным маслом. К вечеру немного орехов или семечек."],
+    ["День 5","Добавь бобовые: горох, фасоль, лучше в виде каши."],
+    ["День 6","Хлеб с солью. Дальше 2 приёма пищи в день, за один приём один вид еды."],
+    ["Дни 7–"+n,"Растительная еда. Молочное ограничить, мясо не раньше конца выхода. Малахов советует так питаться месяц."]]};
+  return {len:"около "+n+" дней", steps:[
+    ["Дни 1–2","Свежие соки, разбавленные водой пополам. По полстакана–стакану каждые 1,5–2 часа. Без соли."],
+    ["Дни 3–4","Соки, разбавленные на треть: 2 части сока, 1 часть воды."],
+    ["Дни 5–6","Неразбавленные соки. Добавь свежие или слегка тушёные на воде овощи, мягкие фрукты."],
+    ["Дни 7–10","Немного хлеба из пророщенной пшеницы, каши на воде. Если соков нет, выходи на травяных отварах и размоченных сухофруктах."],
+    ["Дни 11–"+n,"Постепенно бобовые, орехи, обычный хлеб, соль. Животная еда — в самом конце выхода."]]};
+}
+
+const PREP = [
+ "Перед голоданием дольше 3 дней сходи к врачу: общий анализ крови, глюкоза, ЭКГ, УЗИ живота (желчный пузырь, почки).",
+ "Начинай с коротких голоданий: 1 день, потом 3, потом 7. Малахов советует наращивать постепенно: 7–10 дней, позже 14, через год 21 и больше.",
+ "За 1–2 недели убери мясо, жареное, сладкое, алкоголь. Ешь больше овощей, фруктов, каш.",
+ "Кофе и крепкий чай сокращай заранее. Тогда меньше будет болеть голова.",
+ "Выбери время без тяжёлой работы, поездок за рулём и важных дел. Первые 10 дней самые тяжёлые.",
+ "Предупреди близких. Заранее купи всё для выхода.",
+ "Заранее реши, сколько дней будешь голодать, и посмотри свой план выхода."
+];
+const ENTRY = [
+ "В последний день перед голоданием ешь лёгкую растительную еду. Ужин ранний и небольшой.",
+ "Голодание по Малахову — только на воде. По его словам, даже немного еды мешает организму перестроиться: либо голодаешь на воде, либо нет.",
+ "Малахов начинает с очищения кишечника в первый день: клизма или слабительное. Решай сам. При болезнях кишечника сначала спроси врача.",
+ "Не думай обо всех днях сразу. Проживи один день, потом следующий. Это совет из книги.",
+ "Отметь в приложении дату начала, и оно будет само показывать нужный день."
+];
+const RULES = [
+ "Вода: не меньше 2 литров в день, понемногу. Хочется пить — пей больше. Если с 3–5-го дня тяжело, Малахов советует добавить 0,5 л минеральной воды.",
+ "Движение: каждый день прогулка на свежем воздухе, но по силам. Малахов пишет про 15–20 км в день. Для голодающего это много, ориентируйся на самочувствие.",
+ "Вставай медленно, особенно утром. Закружилась голова — сядь.",
+ "Не садись за руль при слабости или головокружении.",
+ "Береги тепло: во время голодания мёрзнешь быстрее.",
+ "Счищай налёт с языка, полощи рот.",
+ "Не бросай лекарства самовольно, только после разговора с врачом.",
+ "Утром взвешивайся, каждый день записывай самочувствие.",
+ "Плохое самочувствие во время голодания бывает нормой, но только пока нет красных флажков."
+];
+
+const SYMPTOMS = ["Голод","Головная боль","Головокружение","Слабость","Тошнота","Налёт на языке","Запах изо рта","Сухость во рту","Плохой сон","Раздражительность","Зябкость","Обострение старых болячек","Бодрость","Хорошее настроение","Ясная голова"];
+const RED_SYMPTOMS = ["Обморок","Боль в груди","Перебои в сердце","Рвота","Путаница в голове","Мало мочи","Сильная боль в животе","Температура выше 38,5"];
+const MOODS = [[1,"очень плохо"],[2,"плохо"],[3,"терпимо"],[4,"хорошо"],[5,"отлично"]];
+
+/* ===================== ДАННЫЕ ===================== */
+const KEY="kartagolod.v1";
+let S = {accepted:false, fast:null, history:[]};
+try{ const raw=localStorage.getItem(KEY); if(raw){ const p=JSON.parse(raw); if(p&&typeof p==="object") S=Object.assign(S,p);} }catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function parseD(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
+function diffDays(a,b){ return Math.round((parseD(b)-parseD(a))/86400000); }
+function fmtD(s){ return parseD(s).toLocaleDateString("ru-RU",{day:"numeric",month:"long"}); }
+function addDays(s,n){ const d=parseD(s); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function curDay(){ if(!S.fast) return 0; const end = S.fast.ended ? S.fast.endDay : null; const d = diffDays(S.fast.start, todayStr())+1; return end ? end : Math.max(1,d); }
+function exitDay(){ if(!S.fast||!S.fast.ended) return 0; return Math.max(1, diffDays(S.fast.exitStart, todayStr())+1); }
+function plural(n,a,b,c){ const m10=n%10,m100=n%100; if(m10===1&&m100!==11)return a; if(m10>=2&&m10<=4&&(m100<12||m100>14))return b; return c; }
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ===================== ВИДЫ ===================== */
+let view = {tab:"home", day:null, guide:null, diaryDay:null};
+const app = document.getElementById("app");
+
+function mustBlocks(){
+  return `<button class="must" data-go-guide="not"><span class="bang" aria-hidden="true">!</span><span><b>Кому нельзя голодать</b><span class="sub">Прочитай до начала</span></span><span class="chev" aria-hidden="true">›</span></button>
+  <button class="must" data-go-guide="exit"><span class="bang" aria-hidden="true">!</span><span><b>Выход из голодания</b><span class="sub">Самое важное. Прочитай заранее</span></span><span class="chev" aria-hidden="true">›</span></button>`;
+}
+function strip(cur){
+  let h='<div class="strip" aria-hidden="true">';
+  for(let d=1;d<=30;d++){ const st=STAGES[stageOf(d)]; h+=`<i style="background:${st.color}" class="${d===cur?'on':(cur&&d<cur?'past':'')}"></i>`; }
+  h+='</div><div class="strip-legend">';
+  ["s1","s2","k1","s3","k2","s4"].forEach(k=>{ h+=`<span><i class="dot" style="background:${STAGES[k].color}"></i>${STAGES[k].name}</span>`; });
+  return h+'</div>';
+}
+function redFlagsBox(compact){
+  return `<div class="alert stack"><h3>Красные флажки: это не очищение</h3>
+  <ul class="list">${RED_FLAGS.map(f=>`<li>${f}</li>`).join("")}</ul>
+  <p><b>При любом из них прекращай голодание и иди к врачу.</b> Обморок, боль в груди, путаница в голове — сразу скорая: <b>103</b> или <b>112</b>.</p></div>`;
+}
+
+function renderHome(){
+  let h = `<div class="stack-lg"><div class="top"><h1>Карта голодания</h1></div>${mustBlocks()}`;
+  if(!S.fast){
+    h += `<section class="card stack"><p class="eyebrow">Новое голодание</p>
+      <h2>Начать голодание</h2>
+      <p class="muted">Перед началом прочитай в справочнике «Подготовку» и «Вход». Выбери дату, когда начал или начнёшь голодать.</p>
+      <label class="f" for="startDate">Дата начала<input type="date" id="startDate" value="${todayStr()}"></label>
+      <button class="btn wide" id="startBtn">Начать</button>
+      <button class="link" data-go-guide="prep">Как подготовиться</button></section>
+      <section class="card stack"><p class="eyebrow">Что тебя ждёт</p>${strip(0)}
+      <p class="muted small">30 дней разбиты на стадии. Нажми «Карта дней» внизу, чтобы прочитать про каждый день.</p></section>`;
+  } else if(!S.fast.ended){
+    const d=curDay(), dd=DAYS[Math.min(d,30)], st=stageOf(Math.min(d,30)), e=(S.fast.entries||{})[d];
+    h += `<section class="card stack"><div class="top"><p class="eyebrow">Голодание с ${fmtD(S.fast.start)}</p></div>
+      <div class="daynum">${d}<small> ${plural(d,"день","дня","дней")}</small></div>
+      <div class="row"><span class="pill"><i class="dot" style="background:${STAGES[st].color}"></i>${STAGES[st].name}</span></div>
+      ${strip(Math.min(d,30))}
+      ${d>30?`<div class="alert"><p><b>Ты голодаешь больше 30 дней.</b> Приложение дальше не ведёт. Без врача это опасно для жизни. Начинай выход.</p></div>`:""}
+      </section>
+      <section class="card stack"><h2>${dd.t}</h2>
+      <div><p class="eyebrow">Что обычно бывает</p><ul class="list">${dd.may.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+      ${dd.warn?`<div class="alert"><p>${dd.warn}</p></div>`:""}
+      <button class="link" data-open-day="${Math.min(d,30)}">Весь день подробно</button></section>
+      <section class="card stack"><p class="eyebrow">Мои записи за сегодня</p>
+      ${e?entryHtml(d,e):`<p class="muted">Пока ничего не записано.</p>`}
+      <button class="btn wide" data-diary="${d}">${e?"Изменить запись":"Записать самочувствие"}</button></section>
+      <section class="card stack"><h3>Заканчиваешь голодание?</h3>
+      <p class="muted small">Приложение покажет план выхода на ${d} ${plural(d,"день","дня","дней")} голода и будет вести тебя по нему.</p>
+      <button class="btn ghost wide" id="endBtn">Начать выход</button></section>
+      ${redFlagsBox()}`;
+  } else {
+    const n=S.fast.endDay, x=exitDay(), p=exitPlan(n);
+    h += `<section class="card stack"><p class="eyebrow">Выход после ${n} ${plural(n,"дня","дней","дней")} голода</p>
+      <div class="daynum">${x}<small> ${plural(x,"день","дня","дней")} выхода</small></div>
+      <p class="muted">Выход длится ${p.len}.</p></section>
+      <section class="card stack"><h2>План выхода</h2>${planHtml(p,x)}</section>
+      <div class="alert"><p>${REFEED}</p></div>
+      <section class="card stack"><p class="eyebrow">Запись за сегодня</p>
+      <label class="f" for="exitNote">Как самочувствие, что ел<textarea id="exitNote" placeholder="Например: выпил 3 стакана сока, живот спокойный">${esc((S.fast.exitNotes||{})[x]||"")}</textarea></label>
+      <button class="btn wide" id="exitSave">Сохранить</button></section>
+      <section class="card stack"><h3>Выход закончен?</h3><p class="muted small">Голодание уйдёт в историю, записи сохранятся.</p>
+      <button class="btn ghost wide" id="finishBtn">Завершить</button></section>`;
+  }
+  if(S.history.length){
+    h += `<section class="card stack"><p class="eyebrow">Прошлые голодания</p>${S.history.slice().reverse().map(f=>`<p>${fmtD(f.start)}: <b>${f.endDay} ${plural(f.endDay,"день","дня","дней")}</b> голода, записей: ${Object.keys(f.entries||{}).length}</p>`).join("")}</section>`;
+  }
+  return h+"</div>";
+}
+
+function planHtml(p,cur){
+  // cur — день выхода; подсветить шаг, в который он попадает
+  return `<div class="plan">${p.steps.map(s=>{ const m=s[0].match(/(\d+)(?:–(\d+))?/); const a=+m[1], b=m[2]?+m[2]:a; const now=cur&&cur>=a&&cur<=b; return `<div class="step${now?" now":""}"><b>${s[0]}${now?" · сегодня":""}</b><p>${s[1]}</p></div>`; }).join("")}</div>`;
+}
+
+function entryHtml(d,e){
+  const tags=[...(e.sym||[]).map(s=>`<span class="tag${RED_SYMPTOMS.includes(s)?" red":""}">${esc(s)}</span>`)];
+  const parts=[]; if(e.mood) parts.push("самочувствие "+e.mood+" из 5"); if(e.weight) parts.push(e.weight+" кг"); if(e.water) parts.push("вода "+e.water+" л"); if(e.pulse) parts.push("пульс "+e.pulse);
+  return `<div class="entry"><p><b>День ${d}</b>${parts.length?` · <span class="muted">${parts.join(" · ")}</span>`:""}</p>
+  ${tags.length?`<div class="tags">${tags.join("")}</div>`:""}${e.note?`<p>${esc(e.note)}</p>`:""}</div>`;
+}
+
+function renderDays(){
+  if(view.day) return renderDay(view.day);
+  const cur = S.fast&&!S.fast.ended ? curDay() : 0;
+  let h=`<div class="stack-lg"><h1>Карта дней</h1>${strip(Math.min(cur,30))}<div class="daylist">`;
+  let last="";
+  for(let d=1;d<=30;d++){
+    const st=stageOf(d);
+    if(st!==last){ h+=`<div class="stagehead">${STAGES[st].name}</div>`; last=st; }
+    const has = S.fast&&S.fast.entries&&S.fast.entries[d];
+    h+=`<button class="dayrow${d===cur?" today":""}" data-open-day="${d}"><span class="bar" style="background:${STAGES[st].color}"></span><span class="n">${d}</span><span class="t"><b>${DAYS[d].t}</b><span>${DAYS[d].may[0]}</span></span>${d===cur?'<span class="mark">сегодня</span>':(has?'<span class="mark">✓</span>':"")}</button>`;
+  }
+  return h+`</div><p class="muted small">Стадии и сроки по книге Г. П. Малахова. У каждого человека они сдвигаются на несколько дней.</p></div>`;
+}
+
+function renderDay(d){
+  const dd=DAYS[d], st=stageOf(d), e=S.fast&&S.fast.entries?S.fast.entries[d]:null;
+  return `<div class="stack-lg"><button class="back" data-back>‹ Все дни</button>
+  <div class="stack"><div class="daynum">${d}<small> ${plural(d,"день","дня","дней")}</small></div>
+  <div class="row"><span class="pill"><i class="dot" style="background:${STAGES[st].color}"></i>${STAGES[st].name}</span></div>
+  <h2>${dd.t}</h2></div>
+  <p class="muted">${STAGE_TEXT[st]}</p>
+  <section class="card stack"><p class="eyebrow">Что может быть</p><ul class="list">${dd.may.map(x=>`<li>${x}</li>`).join("")}</ul></section>
+  <section class="card stack"><p class="eyebrow">Что делать</p><ul class="list">${dd.doo.map(x=>`<li>${x}</li>`).join("")}</ul></section>
+  ${dd.note?`<div class="note">${dd.note}</div>`:""}
+  ${dd.warn?`<div class="alert"><p><b>${dd.warn}</b></p></div>`:""}
+  ${redFlagsBox()}
+  ${S.fast&&!S.fast.ended?`<section class="card stack"><p class="eyebrow">Мои записи за ${d}-й день</p>${e?entryHtml(d,e):'<p class="muted">Записей нет.</p>'}<button class="btn wide" data-diary="${d}">${e?"Изменить":"Записать"}</button></section>`:""}
+  <div class="row" style="justify-content:space-between">${d>1?`<button class="link" data-open-day="${d-1}">‹ День ${d-1}</button>`:"<span></span>"}${d<30?`<button class="link" data-open-day="${d+1}">День ${d+1} ›</button>`:""}</div>
+  </div>`;
+}
+
+function renderDiary(){
+  if(!S.fast||S.fast.ended){
+    const hist = S.history.length?S.history[S.history.length-1]:null;
+    return `<div class="stack-lg"><h1>Дневник</h1><div class="card stack"><p>${S.fast&&S.fast.ended?"Сейчас идёт выход. Записи выхода ведутся на экране «Сегодня».":"Дневник ведётся во время голодания. Начни голодание на экране «Сегодня»."}</p>
+    <button class="btn wide" data-tab-go="home">На экран «Сегодня»</button></div>
+    ${(S.fast&&S.fast.entries&&Object.keys(S.fast.entries).length)||hist?`<section class="card stack"><p class="eyebrow">Записи последнего голодания</p>${listEntries((S.fast&&S.fast.entries)||hist.entries)}<button class="btn ghost wide" id="copyBtn">Скопировать дневник текстом</button></section>`:""}</div>`;
+  }
+  const cur=curDay(); const d=view.diaryDay||cur; const e=(S.fast.entries||{})[d]||{sym:[]};
+  const sel = Array.from({length:Math.max(cur,1)},(_,i)=>i+1).reverse().map(i=>`<option value="${i}"${i===d?" selected":""}>День ${i}${i===cur?" (сегодня)":""}</option>`).join("");
+  const dd=DAYS[Math.min(d,30)];
+  const red=(e.sym||[]).some(s=>RED_SYMPTOMS.includes(s));
+  return `<div class="stack-lg"><h1>Дневник</h1>
+  <label class="f" for="daySel">День голодания<select id="daySel">${sel}</select></label>
+  <div class="note"><b>Обычно в ${d}-й день:</b> ${dd.may.join("; ").toLowerCase()}.</div>
+  <section class="card stack"><p class="eyebrow">Что чувствуешь</p>
+    <div class="chips" id="symChips">${SYMPTOMS.map(s=>`<button class="chip" aria-pressed="${(e.sym||[]).includes(s)}" data-sym="${esc(s)}">${s}</button>`).join("")}</div>
+    <p class="eyebrow" style="color:var(--danger)">Тревожное</p>
+    <div class="chips">${RED_SYMPTOMS.map(s=>`<button class="chip red" aria-pressed="${(e.sym||[]).includes(s)}" data-sym="${esc(s)}">${s}</button>`).join("")}</div>
+    <div id="redAlert" ${red?"":"hidden"} class="alert"><p><b>Ты отметил тревожный симптом.</b> Это не очищение. Прекращай голодание и иди к врачу. Обморок, боль в груди, путаница — скорая 103 или 112.</p></div>
+  </section>
+  <section class="card stack"><p class="eyebrow">Самочувствие</p>
+    <div class="mood" id="mood">${MOODS.map(m=>`<button aria-pressed="${e.mood===m[0]}" data-mood="${m[0]}"><b>${m[0]}</b><span>${m[1]}</span></button>`).join("")}</div>
+    <div class="grid2"><label class="f" for="w">Вес, кг<input id="w" type="number" inputmode="decimal" step="0.1" value="${e.weight||""}" placeholder="82,4"></label>
+    <label class="f" for="wa">Вода, л<input id="wa" type="number" inputmode="decimal" step="0.1" value="${e.water||""}" placeholder="2"></label></div>
+    <label class="f" for="pu">Пульс утром, уд/мин<input id="pu" type="number" inputmode="numeric" value="${e.pulse||""}" placeholder="72"></label>
+    <label class="f" for="nt">Заметка<textarea id="nt" placeholder="Что болит, как спал, что заметил">${esc(e.note||"")}</textarea></label>
+    <button class="btn wide" id="saveEntry">Сохранить запись</button>
+  </section>
+  <section class="card stack"><p class="eyebrow">Все записи</p>${listEntries(S.fast.entries)}
+  ${Object.keys(S.fast.entries||{}).length?'<button class="btn ghost wide" id="copyBtn">Скопировать дневник текстом</button>':""}</section></div>`;
+}
+function listEntries(entries){
+  const keys=Object.keys(entries||{}).map(Number).sort((a,b)=>b-a);
+  if(!keys.length) return '<p class="muted">Записей пока нет.</p>';
+  return `<div class="stack">${keys.map(k=>entryHtml(k,entries[k])).join("")}</div>`;
+}
+function diaryText(entries){
+  const keys=Object.keys(entries||{}).map(Number).sort((a,b)=>a-b);
+  return keys.map(k=>{ const e=entries[k]; const p=[]; if(e.mood)p.push("самочувствие "+e.mood+"/5"); if(e.weight)p.push(e.weight+" кг"); if(e.water)p.push("вода "+e.water+" л"); if(e.pulse)p.push("пульс "+e.pulse);
+    return "День "+k+(p.length?" ("+p.join(", ")+")":"")+(e.sym&&e.sym.length?"\n  "+e.sym.join(", "):"")+(e.note?"\n  "+e.note:""); }).join("\n\n");
+}
+
+function renderGuide(){
+  const g=view.guide;
+  if(!g){
+    return `<div class="stack-lg"><h1>Справочник</h1>${mustBlocks()}
+    <div class="daylist">
+      ${[["prep","Подготовка","За 1–2 недели до начала"],["entry","Вход","Первый день"],["rules","Правила во время голодания","Вода, движение, безопасность"],["flags","Красные флажки","Когда прекращать сразу"],["about","Об источнике","Откуда тексты"]].map(x=>`<button class="dayrow" data-go-guide="${x[0]}"><span class="t"><b>${x[1]}</b><span>${x[2]}</span></span><span class="chev" style="color:var(--muted)">›</span></button>`).join("")}
+    </div></div>`;
+  }
+  const back='<button class="back" data-back>‹ Справочник</button>';
+  if(g==="not") return `<div class="stack-lg">${back}<div class="row"><span class="bang">!</span><h1>Кому нельзя голодать</h1></div>
+    <section class="alert stack"><h3>Голодать нельзя, если у тебя</h3><ul class="list">${NOT_ALLOWED.map(x=>`<li>${x}</li>`).join("")}</ul></section>
+    <section class="card stack"><h3>Только после разговора с врачом</h3><ul class="list">${CAUTION.map(x=>`<li>${x}</li>`).join("")}</ul></section>
+    <div class="note">Перед любым голоданием дольше 3 дней сходи к врачу и сдай анализы. Сам Малахов пишет в книге: рекомендации нужно согласовывать с лечащим врачом.</div></div>`;
+  if(g==="exit"){
+    const n = S.fast ? (S.fast.ended?S.fast.endDay:curDay()) : 7;
+    return `<div class="stack-lg">${back}<div class="row"><span class="bang">!</span><h1>Выход из голодания</h1></div>
+    <section class="alert stack"><h3>Главные правила выхода</h3><ol class="list">${EXIT_RULES.map(r=>`<li><b>${r[0]}</b> ${r[1]}</li>`).join("")}</ol></section>
+    <div class="alert"><p><b>${REFEED}</b></p></div>
+    <section class="card stack"><h2>Твой план выхода</h2>
+      <label class="f" for="exN">Сколько дней голодал (или собираешься)<input id="exN" type="number" inputmode="numeric" min="1" max="60" value="${n}"></label>
+      <div id="exPlan">${exitPlanBlock(n)}</div></section>
+    <div class="note">Если пришлось прервать голодание из-за плохого самочувствия, выходи всё равно постепенно, по той же схеме. При красных флажках сначала врач.</div></div>`;
+  }
+  const blocks={prep:["Подготовка",PREP],entry:["Вход в голодание",ENTRY],rules:["Правила во время голодания",RULES]};
+  if(blocks[g]) return `<div class="stack-lg">${back}<h1>${blocks[g][0]}</h1><section class="card"><ol class="list">${blocks[g][1].map(x=>`<li>${x}</li>`).join("")}</ol></section>
+    ${g!=="prep"?"":`<button class="must" data-go-guide="not"><span class="bang">!</span><span><b>Кому нельзя голодать</b><span class="sub">Проверь себя</span></span><span class="chev">›</span></button>`}</div>`;
+  if(g==="flags") return `<div class="stack-lg">${back}<h1>Красные флажки</h1>${redFlagsBox()}
+    <div class="note">Головная боль, слабость, налёт на языке, плохое настроение в первые 10 дней бывают у многих. Но если они резко нарастают, а не проходят, это тоже повод остановиться.</div></div>`;
+  if(g==="about") return `<div class="stack-lg">${back}<h1>Об источнике</h1><section class="card stack">
+    <p>Тексты о стадиях, днях, подготовке и выходе — пересказ своими словами книги Г. П. Малахова «Голодание в лечебных целях» (2007).</p>
+    <p>Разделы «Кому нельзя», «Красные флажки» и предупреждения о выходе дополнены по общим медицинским рекомендациям.</p>
+    <p>Сам автор пишет, что книга не является учебником по медицине и рекомендации нужно согласовывать с лечащим врачом. Это приложение — дневник и справочник, а не лечение.</p>
+    <p class="muted small">Все записи хранятся только в этом телефоне, в браузере. Если очистить данные браузера, записи пропадут.</p></section></div>`;
+  return "";
+}
+function exitPlanBlock(n){ const p=exitPlan(n); return `<p class="muted">После ${n} ${plural(n,"дня","дней","дней")} голода выход длится ${p.len}.</p>${planHtml(p,0)}${n>=10?`<div class="alert"><p>После ${n} ${plural(n,"дня","дней","дней")} голода выходи под наблюдением врача.</p></div>`:""}`; }
+
+/* ===================== ОТРИСОВКА И СОБЫТИЯ ===================== */
+function render(){
+  const r={home:renderHome,days:renderDays,diary:renderDiary,guide:renderGuide}[view.tab];
+  app.innerHTML=r();
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current", b.dataset.tab===view.tab?"page":"false"));
+  bind();
+}
+function go(tab,extra){ view=Object.assign({tab:tab,day:null,guide:null,diaryDay:null},extra||{}); render(); window.scrollTo(0,0); }
+function toast(t){ const el=document.getElementById("toast"); el.textContent=t; el.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>el.hidden=true,1800); }
+
+function bind(){
+  app.querySelectorAll("[data-go-guide]").forEach(b=>b.onclick=()=>go("guide",{guide:b.dataset.goGuide}));
+  app.querySelectorAll("[data-open-day]").forEach(b=>b.onclick=()=>go("days",{day:+b.dataset.openDay}));
+  app.querySelectorAll("[data-diary]").forEach(b=>b.onclick=()=>go("diary",{diaryDay:+b.dataset.diary}));
+  app.querySelectorAll("[data-tab-go]").forEach(b=>b.onclick=()=>go(b.dataset.tabGo));
+  app.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>go(view.tab));
+  const sb=document.getElementById("startBtn");
+  if(sb) sb.onclick=()=>{ const v=document.getElementById("startDate").value||todayStr(); if(diffDays(v,todayStr())<0){toast("Дата в будущем — выбери сегодня или раньше");return;} S.fast={start:v,entries:{}}; save(); go("home"); toast("Голодание начато"); };
+  const eb=document.getElementById("endBtn");
+  if(eb){ let armed=false; eb.onclick=()=>{ if(!armed){armed=true; eb.textContent="Точно начать выход? Нажми ещё раз"; eb.classList.add("danger"); eb.classList.remove("ghost"); return;} S.fast.ended=true; S.fast.endDay=curDayRaw(); S.fast.exitStart=todayStr(); S.fast.exitNotes={}; save(); go("home"); }; }
+  const xs=document.getElementById("exitSave");
+  if(xs) xs.onclick=()=>{ S.fast.exitNotes=S.fast.exitNotes||{}; S.fast.exitNotes[exitDay()]=document.getElementById("exitNote").value; save(); toast("Сохранено"); };
+  const fb=document.getElementById("finishBtn");
+  if(fb){ let armed=false; fb.onclick=()=>{ if(!armed){armed=true; fb.textContent="Точно завершить? Нажми ещё раз"; return;} S.history.push(S.fast); S.fast=null; save(); go("home"); toast("Голодание сохранено в историю"); }; }
+  const exN=document.getElementById("exN");
+  if(exN) exN.oninput=()=>{ const n=Math.min(60,Math.max(1,parseInt(exN.value)||1)); document.getElementById("exPlan").innerHTML=exitPlanBlock(n); };
+  // дневник
+  const ds=document.getElementById("daySel");
+  if(ds) ds.onchange=()=>{ view.diaryDay=+ds.value; render(); };
+  app.querySelectorAll("[data-sym]").forEach(b=>b.onclick=()=>{ b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")==="true"?"false":"true"); const anyRed=[...app.querySelectorAll(".chip.red")].some(c=>c.getAttribute("aria-pressed")==="true"); const ra=document.getElementById("redAlert"); if(ra) ra.hidden=!anyRed; });
+  app.querySelectorAll("[data-mood]").forEach(b=>b.onclick=()=>{ app.querySelectorAll("[data-mood]").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); });
+  const se=document.getElementById("saveEntry");
+  if(se) se.onclick=()=>{
+    const d=view.diaryDay||curDay();
+    const sym=[...app.querySelectorAll("[data-sym]")].filter(c=>c.getAttribute("aria-pressed")==="true").map(c=>c.dataset.sym);
+    const m=app.querySelector("[data-mood][aria-pressed='true']");
+    const num=id=>{ const v=document.getElementById(id).value.replace(",","."); return v?+v:null; };
+    S.fast.entries=S.fast.entries||{};
+    S.fast.entries[d]={sym, mood:m?+m.dataset.mood:null, weight:num("w"), water:num("wa"), pulse:num("pu"), note:document.getElementById("nt").value.trim()};
+    save(); toast("Запись за "+d+"-й день сохранена"); render();
+  };
+  const cb=document.getElementById("copyBtn");
+  if(cb) cb.onclick=()=>{ const entries=(S.fast&&S.fast.entries&&Object.keys(S.fast.entries).length)?S.fast.entries:(S.history.length?S.history[S.history.length-1].entries:{}); const txt="Дневник голодания\n\n"+diaryText(entries);
+    const fallback=()=>{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.minHeight="200px"; cb.replaceWith(ta); ta.focus(); ta.select(); };
+    try{ navigator.clipboard.writeText(txt).then(()=>toast("Скопировано"),fallback); }catch(e){ fallback(); } };
+}
+function curDayRaw(){ return Math.max(1, diffDays(S.fast.start, todayStr())+1); }
+
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
+
+/* Первый запуск: кому нельзя */
+function gate(){
+  if(S.accepted) return;
+  const o=document.getElementById("overlay");
+  o.innerHTML=`<div class="overlay"><div class="card stack"><div class="row"><span class="bang">!</span><h2>Прежде чем начать</h2></div>
+  <p>Голодание подходит не всем. Голодать нельзя, если у тебя:</p>
+  <ul class="list">${NOT_ALLOWED.slice(0,8).map(x=>`<li>${x}</li>`).join("")}<li>и в других случаях из раздела «Кому нельзя»</li></ul>
+  <p><b>Выход из голодания — самая опасная часть.</b> Прочитай раздел «Выход» до начала.</p>
+  <label class="check" for="gateChk"><input type="checkbox" id="gateChk"><span>Я прочитал. Ко мне это не относится, или я поговорил с врачом.</span></label>
+  <button class="btn wide" id="gateBtn" disabled>Понятно</button></div></div>`;
+  const chk=document.getElementById("gateChk"), btn=document.getElementById("gateBtn");
+  chk.onchange=()=>btn.disabled=!chk.checked;
+  btn.onclick=()=>{ S.accepted=true; save(); o.innerHTML=""; };
+}
+render(); gate();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}</script></body></html>
